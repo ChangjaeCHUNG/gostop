@@ -16,7 +16,7 @@ class Card():
         return self.name
 
 cards = [Card(c ,int(c[:2]), c[-1], c[2:-1] if c[2:-1] else None) for c in raw_cards]
-bonus = Card('보너스', '', '피', '보너스')
+bonus = Card('보너스', '', '피', '쌍')
 cards += [bonus, bonus]
 for c in cards: c.name = f'{c.month}{c.feature}' if c.feature is not None else f'{c.month}{c.type}'
 cards_by_name = {c.name: c for c in cards}
@@ -43,6 +43,7 @@ class Player():
         self.matched = {'피':[], '멍':[], '단':[], '광':[]}
         self.hand = []
         self.money = START_MONEY
+        self.fucked = []
     
     def decide_hit(self, ground):    
         if self.is_human:
@@ -55,6 +56,10 @@ class Player():
         elif not self.is_human:
             pass #ai가 들어갈 부분    
         return hit
+
+    def memorize_fuck(self, month):
+        self.fucked.append(month)
+        return None
         
             
 
@@ -89,6 +94,12 @@ class Game():
         return others
     
     def add_to_matched(self, start, player, card):
+        if card.feature == '국진':
+            while True:
+                decided_type = input('\'멍\'과 \'피\' 중에서 국진을 놓을 곳을 입력하세요 : ')
+                if decided_type in ['멍', '피']:
+                    move_card(start, player.matched[decided_type], card)
+                    return None
         move_card(start, player.matched[card.type], card)
         return None
     
@@ -113,7 +124,7 @@ class Game():
         others = self.get_others(player)
         for other in others:
             robbed = []
-            double = filter_cards(lambda c: c.feature in ['쌍', '국진', '보너스'], other.matched['피'])
+            double = filter_cards(lambda c: c.feature in ['쌍', '국진'], other.matched['피'])
             single = filter_cards(lambda c: c.feature is None, other.matched['피'])
             if len(single) + 2*len(double) <= rob_count:
                 robbed = other.matched['피'][:]
@@ -128,7 +139,7 @@ class Game():
         return None
             
     def calculate_pea(self, player):
-        double = filter_cards(lambda c: c.feature in ['쌍', '국진', '보너스'], player.matched['피'])
+        double = filter_cards(lambda c: c.feature in ['쌍', '국진'], player.matched['피'])
         return len(player.matched['피']) + len(double)
     
     def hit_and_draw(self, player):
@@ -138,7 +149,12 @@ class Game():
         candidates_for_hit = []
         candidates_for_drawn = []
         
-        hit = player.decide_hit(self.ground)
+        while True:
+            hit = player.decide_hit(self.ground)
+            if hit.name != '보너스': break
+            elif hit.name == '보너스':
+                self.add_to_matched(player.hand, player, hit)
+        
         able_on_ground = filter_cards(lambda c: c.month == hit.month, self.ground)
         self.hit_to_ground(player, hit)
         
@@ -147,6 +163,7 @@ class Game():
                 temporarily_matched.append(target)
             temporarily_matched.append(hit)
             rob_count += 1
+            if target.month in player.fucked: rob_count += 1
                     
         elif len(able_on_ground) == 2: 
             have_to_choose = True
@@ -160,7 +177,12 @@ class Game():
         
         elif len(able_on_ground) == 0: pass
         
-        drawn = self.deck[0]
+        while True:
+            drawn = self.deck[0]
+            if drawn.name != '보너스': break
+            elif drawn.name == '보너스':
+                self.add_to_matched(self.deck, player, drawn)
+        
         able_on_ground = filter_cards(lambda c: c.month == drawn.month, self.ground)
         move_card(self.deck, self.ground, drawn)
         
@@ -175,10 +197,12 @@ class Game():
                     temporarily_matched.append(target)
                 temporarily_matched.append(drawn)
                 rob_count += 1
+                if target.month in player.fucked: rob_count += 1
                         
         elif len(able_on_ground) == 2:
             if hit in able_on_ground: #뻑
                 temporarily_matched = []
+                player.memorize_fuck(hit.month)
                 
             elif hit not in able_on_ground:    
                 have_to_choose = True
