@@ -6,6 +6,7 @@ raw_cards = ['01피', '01피', '01홍단', '01광', '02피', '02피', '02고도�
                 '07피', '07피', '07초단', '07멍', '08피', '08피', '08고도리멍', '08광', '09피', '09피', '09국진멍', '09청단',
                 '10피', '10피', '10청단', '10멍', '11피', '11피', '11쌍피', '11광', '12쌍피', '12멍', '12단', '12비광']
 
+
 class Card():
     def __init__(self, name, month, type, feature):
         self.name = name
@@ -15,8 +16,9 @@ class Card():
     def __repr__(self):
         return self.name
 
+
 cards = [Card(c ,int(c[:2]), c[-1], c[2:-1] if c[2:-1] else None) for c in raw_cards]
-bonus = Card('보너스', '', '피', '쌍')
+bonus = Card('보너스', '', '피', '보너스')
 cards += [bonus, bonus]
 for c in cards: c.name = f'{c.month}{c.feature}' if c.feature is not None else f'{c.month}{c.type}'
 cards_by_name = {c.name: c for c in cards}
@@ -36,6 +38,7 @@ def move_card(start, end, card):
     end.append(card)
     return None
 
+
 class Player():
     def __init__(self, name, is_human):
         self.name = name
@@ -43,7 +46,14 @@ class Player():
         self.matched = {'피':[], '멍':[], '단':[], '광':[]}
         self.hand = []
         self.money = START_MONEY
+        self.score = 0
+        self.lastscore = 0
         self.fucked = []
+        self.stop = False
+        self.go = 0
+        self.score_addition = 0
+        self.score_mutiplication = 1
+        self.bak = 1
     
     def decide_hit(self, ground):    
         if self.is_human:
@@ -60,8 +70,102 @@ class Player():
     def memorize_fuck(self, month):
         self.fucked.append(month)
         return None
+    
+    def count_pea(self): 
+        double = filter_cards(lambda c: c.feature in ['쌍', '국진', '보너스'], self.matched['피'])
+        return len(self.matched['피']) + len(double) - 9
+
+    def calculate_pea_score(self):
+        return max([0, self.count_pea(self)-9])
+    
+    def is_peabak(self):
+        if self.count_pea(self) in range(1,6): 
+            self.bak *= 2
+            return True
+        return False
+    
+    def count_mung(self):
+        return len(self.matched['멍'])
+    
+    def is_godori(self):
+        godori = filter_cards(lambda c: c.feaure == '고도리', self.matched['멍'])
+        return len(godori) == 3
+    
+    def calculate_mung_score(self):
+        mung_count = self.count_mung(self)
+        if mung_count >= 7: self.score_mutiplication *= 2
+        return self.is_godori(self) * 5 + max([0, mung_count - 4])
+    
+    def count_dan(self):
+        return len(self.matched['단'])
+    
+    def count_set_of_dan(self):
+        chung = filter_cards(lambda c: c.feaure == '청', self.matched['단'])
+        hong = filter_cards(lambda c: c.feaure == '홍', self.matched['단'])
+        cho = filter_cards(lambda c: c.feaure == '초', self.matched['단'])
+        return sum(filter(lambda count: count == 3, [chung, hong, cho]))
+
+    def calculate_dan_score(self):
+        return self.count_set_of_dan(self) * 3 + max([0, self.count_dan(self) - 4])
+
+    def count_gwang(self):
+        return len(self.matched['광'])
+    
+    def include_bea(self):
+        bea = filter_cards(lambda c: c.feature == '비', self.matched['광'])
+        return len(bea)
+    
+    def calculate_gwang_score(self):
+        gwang_count = self.count_gwang(self)
+        if gwang_count <= 2: return 0
+        elif gwang_count == 3:
+            if self.include_bea(self): return 2
+            return 3
+        elif gwang_count == 4: return 4
+        return 15
+    
+    def is_gwangbak(self):
+        if not self.count_gwang(self):
+            self.bak *= 2
+            return True
+        return False 
+    
+    def calculate_score(self):
+        self.score = sum([self.calculate_pea_score(self), 
+                        self.calculate_mung_score(self), 
+                        self.calculate_dan_score(self), 
+                        self.calculate_gwang_score(self)])
+    
+    def _decide_to_stop(self):
+        if self.is_human:
+            while True:
+                decision = input(f'\'고\' or \'스톱\'? ')
+                if decision in ['고', '스톱']:
+                    break
+        elif not self.is_human:
+            decision = '스톱' #ai가 들어갈 부분
+        return decision == '스톱'
         
-            
+    
+    def go_or_stop(self):
+        if self.go:
+            if self.score > self.lastscore:
+                stop = self._decide_to_stop()
+                if stop: self.stop = True
+                elif not stop: 
+                    self.go += 1
+                    if self.go == 2: self.score_addition = 2
+                    elif self.go >= 3: self.score_mutiplication *= 2
+        elif self.score >= 3:
+                stop = self._decide_to_stop()
+                if stop: self.stop = True
+                elif not stop: 
+                    self.go += 1
+                    self.score_addition = 1
+        return None
+
+
+
 
 class Game():
     def __init__(self, player1, player2, player3, cards):
@@ -72,6 +176,8 @@ class Game():
         self.ground = []
         self.deck = []
         self.order = [self.player1, self.player2, self.player3]
+        self.winner = random.choice(self.order)
+        self.nagari = 0
     
     def shuffle(self):
         random.shuffle(self.cards)
@@ -82,11 +188,37 @@ class Game():
         self.deck = self.cards[27:]
         return None
     
-    def set_order(self, winner_name):
+    def set_order(self):
+        winner_name = self.winner.name
         if winner_name == self.player1.name: self.order = [self.player1, self.player2, self.player3]
         elif winner_name == self.player2.name: self.order = [self.player2, self.player3, self.player1]
         elif winner_name == self.player3.name: self.order = [self.player3, self.player1, self.player2]
         return None
+
+    def reset(self): ##나중에 한번에 정리
+        for player in self.order:
+            player.matched = {'피':[], '멍':[], '단':[], '광':[]}
+            player.hand = []
+            player.fucked = []
+            player.stop = False
+            player.go = 0
+            player.score_addition = 0
+            player.score_mutiplication = 2 ** self.nagari
+            player.bak = 1
+        return None
+    
+    def start_game(self):
+        self.set_order()
+        self.reset()
+        self.shuffle()
+        turns = range(7)
+        for turn in turns:
+            for player in self.order:
+                self.hit_and_draw(player, turn)
+                player.calculate_score()
+                player.go_or_stop()
+                if player.stop: pass
+
     
     def get_others(self, player):
         others = self.order[:]
@@ -124,7 +256,7 @@ class Game():
         others = self.get_others(player)
         for other in others:
             robbed = []
-            double = filter_cards(lambda c: c.feature in ['쌍', '국진'], other.matched['피'])
+            double = filter_cards(lambda c: c.feature in ['쌍', '국진', '보너스'], other.matched['피'])
             single = filter_cards(lambda c: c.feature is None, other.matched['피'])
             if len(single) + 2*len(double) <= rob_count:
                 robbed = other.matched['피'][:]
@@ -137,12 +269,8 @@ class Game():
             
             for card in robbed: self.add_to_matched(other.matched['피'], player, card)
         return None
-            
-    def calculate_pea(self, player):
-        double = filter_cards(lambda c: c.feature in ['쌍', '국진'], player.matched['피'])
-        return len(player.matched['피']) + len(double)
     
-    def hit_and_draw(self, player):
+    def hit_and_draw(self, player, turn):
         rob_count = 0
         temporarily_matched = []
         have_to_choose = False
@@ -235,6 +363,9 @@ class Game():
             rob_count += 1 
         
         self.rob_matched_from_others(player, rob_count)
+        return None
+    
+    
     
     def print_state(self):
         print(f'{self.player1.name}\n'
@@ -265,7 +396,8 @@ if __name__ == '__main__':
     p2 = Player('opp1', True)
     p3 = Player('opp2', True)
     game = Game(p1, p2, p3, cards)
-    game.custom_game()
-    game.print_state()
-    game.hit_and_draw(game.player1)
-    game.print_state()      
+    print(cards)
+    # game.custom_game()
+    # game.print_state()
+    # game.hit_and_draw(game.player1)
+    # game.print_state()      
