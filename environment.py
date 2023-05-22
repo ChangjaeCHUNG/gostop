@@ -255,8 +255,8 @@ class Game():
                 loser.money -= THREE_FUCK
             return None
         for loser in losers:
-            if scored_by_pea: loser.bak *= 2 ** loser.is_peabak #피박
-            if scored_by_gwang: loser.bak *= 2 ** loser.is_gwangbak #광박
+            if scored_by_pea: loser.bak *= 2 ** loser.is_peabak() #피박
+            if scored_by_gwang: loser.bak *= 2 ** loser.is_gwangbak() #광박
             if loser.go: loser.bak *= 2 #고박
             lose = (winner.score + winner.score_addition) * winner.score_multiplication * loser.bak
             loser.money -= lose
