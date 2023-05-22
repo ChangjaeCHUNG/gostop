@@ -92,7 +92,7 @@ class Player():
         return len(self.matched['멍'])
     
     def is_godori(self):
-        godori = filter_cards(lambda c: c.feaure == '고도리', self.matched['멍'])
+        godori = filter_cards(lambda c: c.feature == '고도리', self.matched['멍'])
         return len(godori) == 3
     
     def calculate_mung_score(self):
