@@ -56,7 +56,7 @@ class Player():
         self.stop = False
         self.go = 0
         self.score_addition = 0
-        self.score_mutiplication = 1
+        self.score_multiplication = 1
         self.bak = 1
     
     def decide_hit(self, ground):    
@@ -97,7 +97,7 @@ class Player():
     
     def calculate_mung_score(self):
         mung_count = self.count_mung()
-        if mung_count >= 7: self.score_mutiplication *= 2
+        if mung_count >= 7: self.score_multiplication *= 2
         return self.is_godori() * 5 + max([0, mung_count - 4])
     
     def count_dan(self):
@@ -159,7 +159,7 @@ class Player():
                 elif not stop: 
                     self.go += 1
                     if self.go == 2: self.score_addition = 2
-                    elif self.go >= 3: self.score_mutiplication *= 2
+                    elif self.go >= 3: self.score_multiplication *= 2
         elif self.score >= 3:
                 stop = self._decide_to_stop()
                 if stop: self.stop = True
@@ -217,7 +217,7 @@ class Game():
             player.stop = False
             player.go = 0
             player.score_addition = 0
-            player.score_mutiplication = 2 ** self.nagari
+            player.score_multiplication = 2 ** self.nagari
             player.bak = 1
         return None
     
@@ -255,8 +255,8 @@ class Game():
                 loser.money -= THREE_FUCK
             return None
         for loser in losers:
-            if scored_by_pea: loser.bak *= 2 ** loser.is_peabak #피박
-            if scored_by_gwang: loser.bak *= 2 ** loser.is_gwangbak #광박
+            if scored_by_pea: loser.bak *= 2 ** loser.is_peabak() #피박
+            if scored_by_gwang: loser.bak *= 2 ** loser.is_gwangbak() #광박
             if loser.go: loser.bak *= 2 #고박
             lose = (winner.score + winner.score_addition) * winner.score_multiplication * loser.bak
             loser.money -= lose
@@ -305,7 +305,7 @@ class Game():
                     if chosen: 
                         chosen = chosen[0]
                         break
-        elif not self.is_human:
+        elif not player.is_human:
             pass #ai가 들어갈 부분
         return chosen
 
