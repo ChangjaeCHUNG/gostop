@@ -305,7 +305,7 @@ class Game():
                     if chosen: 
                         chosen = chosen[0]
                         break
-        elif not self.is_human:
+        elif not player.is_human:
             pass #ai가 들어갈 부분
         return chosen
 
