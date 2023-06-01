@@ -285,7 +285,7 @@ class Game():
                 while True:
                     decided_type = input('\'멍\'과 \'피\' 중에서 국진을 놓을 곳을 입력하세요 : ')
                     if decided_type in ['멍', '피']: break
-            elif not self.is_human:
+            elif not player.is_human:
                 decided_type = '피' #ai가 들어갈 부분    
             move_card(start, player.matched[decided_type], card)
             return None
